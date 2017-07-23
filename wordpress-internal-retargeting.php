@@ -1,13 +1,32 @@
 <?php
 /**
  * Plugin Name: Wordpress Internal Retargeting
- * Plugin URI: https://jqueryplugins.net/wordpress-internal-re-targeting/ ‎
+ * Plugin URI: https://jqueryplugins.net/wordpress-internal-re-targeting/
  * Description: This plugin allows you to easilly set up a goal page then target users who visit that page, don't convert, but still stay on your website with a message of your choice to get them to reconsider visitng the goal page.
  * Version: 1.0
  * Author: jqueryplugins.net
  * Author URI: https://jqueryplugins.net/
  * License: GPL2
+ * Text Domain: wp_internal_retargeting
  */
+
+add_action( 'wp', 'wp_ir_check_set_cookie' );
+function wp_ir_check_set_cookie(){ 
+  $gtf = get_option( 'goal_text_field' );
+  $goalpages = explode(',', $gtf );
+  $pid = get_the_ID();
+  if (in_array($pid , $goalpages)) {
+    //check if visited cookie exists
+     if(!isset($_COOKIE['wp_ir_v'])) {
+       //make sure were not on the frontpage
+      if (!is_front_page()) {	
+        $domain = ($_SERVER['HTTPS_HOST'] != 'localhost') ? $_SERVER['HTTPS_HOST'] : true;  
+       	setcookie('wp_ir_v', 'diversity', time()+60*60*24*365, '/', $domain, true);}
+       }else {
+       //cookie is set - don't need to do anything
+         }
+}
+}
 
 function wordpress_internal_retargeting_shortcode() {
   // output retargeting message if visitor was in funnel but has fallen out.
@@ -17,14 +36,7 @@ function wordpress_internal_retargeting_shortcode() {
   $pid = get_the_ID();
       //check if we are in the funnel
    if (in_array($pid , $goalpages)) {
-    //check if visited cookie exists
-     if(!isset($_COOKIE['wp_ir_v'])) {
-       //no - on goal page but no cookie - set cookie
-       $domain = ($_SERVER['HTTPS_HOST'] != 'localhost') ? $_SERVER['HTTPS_HOST'] : true;
-       setcookie('wp_ir_v', 'diversity', time()+60*60*24*365, '/', $domain, true);
-       }else {
-       //yes -  no need to do anything - cookie already exists
-         }
+     // do nothing
    }else { //not in goalpages array
       if(!isset($_COOKIE['wp_ir_v'])) {
        //cookie not set - no need to do anything
@@ -50,8 +62,8 @@ class wp_internal_retargeting_Plugin {
     	add_action( 'admin_init', array( $this, 'setup_sections' ) );
     	add_action( 'admin_init', array( $this, 'setup_fields' ) );
       // add shortcodes
-      add_shortcode( 'internal-retargeting-message', 'wordpress_internal_retargeting_shortcode' );
-      add_shortcode( 'wordpress_internal_retargeting_set_success', 'wordpress_internal_retargeting_set_success_shortcode' );
+      add_shortcode( 'wp-ir-message', 'wordpress_internal_retargeting_shortcode' );
+      add_shortcode( 'wp-ir-success', 'wordpress_internal_retargeting_set_success_shortcode' );
     }
     public function create_plugin_settings_page() {
     	 // Add the menu item and page
@@ -77,7 +89,13 @@ class wp_internal_retargeting_Plugin {
                     submit_button();
                 ?>
     		</form>
-    	</div> <?php
+    	 <?php
+      	   echo '<h2>Plugin Shortcodes</h2>';
+      	   echo '<strong>Retargeting Message Shortcode:</strong> [wp-ir-message]<ul><li>Add shortcode to any page outside of your goal funnel.</li>';
+      echo '<li>This shortcode will display your retargeting message if the user has fallen out of goal funnel.</li></ul><hr />';
+           echo '<strong>Success Shortcode:</strong> [wp-ir-success]<ul><li>Add shortcode to your thank you page or other success indicator page.</li>';
+           echo '<li>The success shortcode clears user cookies so that retargeting message is no longer displayed</li></ul></div>';
+      echo '<h2>Tutorial: How to use this plugin</h2> Please visit: <a href="https://jqueryplugins.net/wordpress-internal-re-targeting/">jqueryplugins.net/wordpress-internal-re-targeting/</a> for a detailed walkthrough of this plugin';
     }
     
     public function admin_notice() { ?>
@@ -87,17 +105,18 @@ class wp_internal_retargeting_Plugin {
     }
     public function setup_sections() {
         add_settings_section( 'our_first_section', 'Set Goal Page', array( $this, 'section_callback' ), 'wp_internal_fields' );
-        add_settings_section( 'our_second_section', 'Set Retargeting Message Shortcode Contents', array( $this, 'section_callback' ), 'wp_internal_fields' );
-        
+        add_settings_section( 'our_second_section', 'Set Retargeting Message Shortcode Contents', array( $this, 'section_callback' ), 'wp_internal_fields' );      
     }
     public function section_callback( $arguments ) {
     	 switch( $arguments['id'] ){
         case 'our_first_section':
+           
           echo 'Choose your goal pages';
           break;
         case 'our_second_section':
           echo 'Goal Message Output';
           break;
+          
         }
     }
     public function setup_fields() {
@@ -109,7 +128,7 @@ class wp_internal_retargeting_Plugin {
             'type' => 'text',
             'placeholder' => '321',
             'helper' => 'Separate multiple pages with a comma',
-            'supplimental' => '',
+            'supplimental' => 'Note: Blog Front Page can not be set as a goal page.',
           ),
           array(
             'uid' => 'retargeting_textarea',
